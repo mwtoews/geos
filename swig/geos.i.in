@@ -122,10 +122,6 @@ const char *GEOSversion();
    the select macro) */
 
 
-#ifdef SWIGPYTHON
-	%include @top_srcdir@/swig/python/python.i
-#endif
-
 #ifdef SWIGRUBY
 	%include @top_srcdir@/swig/ruby/ruby.i
 #endif

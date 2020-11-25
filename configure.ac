@@ -235,22 +235,6 @@ if test x"$HAVE_INT64_T_64" = x"no" ; then
 fi
 
 
-
-dnl --------------------------------------------------------------------
-dnl - check whether python is required for the build
-dnl --------------------------------------------------------------------
-
-AC_ARG_ENABLE([python],
-	[  --enable-python         Enable build of python module],
-	[case "${enableval}" in
-		yes) use_python=true ;;
-		no)  use_python=false ;;
-		*) AC_MSG_ERROR(bad value ${enableval} for --enable-python) ;;
-	esac],
-	[use_python=false]
-)
-
-
 dnl --------------------------------------------------------------------
 dnl - check whether ruby is required for the build
 dnl --------------------------------------------------------------------
@@ -266,43 +250,21 @@ AC_ARG_ENABLE([ruby],
 )
 
 dnl --------------------------------------------------------------------
-dnl - check for swig if python or ruby are enabled
+dnl - check for swig if ruby is enabled
 dnl --------------------------------------------------------------------
 
 use_swig=false
-if test x"$use_python" = xtrue ||
-   test x"$use_ruby" = xtrue; then
+if test x"$use_ruby" = xtrue; then
   AC_PROG_SWIG(1.3.28)
   if test x"$SWIG" != "x"; then
     SWIG_ENABLE_CXX
     AC_SUBST(SWIG)
     use_swig=true
   else
-    use_python=false
     use_ruby=false
   fi
 fi
 AM_CONDITIONAL(ENABLE_SWIG, [ test x"$use_swig" = xtrue ])
-
-
-dnl --------------------------------------------------------------------
-dnl - check for python if enabled
-dnl --------------------------------------------------------------------
-
-if test x"$use_python" = xtrue; then
-	dnl Check for Python
-  AM_PATH_PYTHON
-  SWIG_PYTHON
-
-	if test x"$PYTHON" = "x"; then
-		use_python=false
-	fi
-
-	AC_SUBST(PYTHON)
-	AC_SUBST(SWIG_PYTHON_CPPFLAGS)
-	AC_SUBST(SWIG_PYTHON_OPT)
-fi
-AM_CONDITIONAL(ENABLE_PYTHON, [test x"$use_python" = xtrue])
 
 
 dnl --------------------------------------------------------------------
@@ -483,8 +445,6 @@ AC_OUTPUT([
 	src/util/Makefile
 	swig/geos.i
 	swig/Makefile
-	swig/python/Makefile
-	swig/python/tests/Makefile
 	swig/ruby/Makefile
 	swig/ruby/test/Makefile
 	tests/Makefile
@@ -507,7 +467,6 @@ AC_OUTPUT([
 dnl -- echo "---------------------------------------"
 dnl -- echo "Boost UTF: $use_boost_utf"
 echo "Swig: $use_swig"
-echo "Python bindings: $use_python"
 echo "Ruby bindings: $use_ruby"
 echo "OverlayNG: $use_overlayng"
 
