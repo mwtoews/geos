@@ -24,6 +24,8 @@ string(REGEX MATCH "GEOS_VERSION_MINOR=([0-9]+)" _ ${_version_txt})
 set(_version_minor ${CMAKE_MATCH_1})
 string(REGEX MATCH "GEOS_VERSION_PATCH=([0-9]+)" _ ${_version_txt})
 set(_version_patch ${CMAKE_MATCH_1})
+set(GEOS_VERSION_NOPATCH "${_version_major}.${_version_minor}.${_version_patch}")
+
 # OPTIONS: "", "dev", "rc1" etc.
 string(REGEX MATCH "GEOS_PATCH_WORD=([a-zA-Z0-9]+)" _ ${_version_txt})
 set(_version_patch_word ${CMAKE_MATCH_1})
@@ -56,23 +58,19 @@ unset(_version_capi_revision)
 #-----------------------------------------------------------------------------
 # Project
 #-----------------------------------------------------------------------------
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.9)
-  list(APPEND _project_info DESCRIPTION "GEOS - C++ port of the Java Topology Suite (JTS)")
-endif()
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.12)
-  list(APPEND _project_info HOMEPAGE_URL "https://libgeos.org/")
-endif()
 
-project(GEOS VERSION "${_version_major}.${_version_minor}.${_version_patch}"
+project(GEOS
+  VERSION ${GEOS_VERSION_NOPATCH}
   LANGUAGES C CXX
-  ${_project_info})
+  DESCRIPTION "GEOS - C++ port of the Java Topology Suite (JTS)"
+  HOMEPAGE_URL "https://libgeos.org/"
+)
 
 if(NOT "${_version_patch_word}" STREQUAL "")
   # Re-write VERSION variables after project()
   set(GEOS_VERSION "${GEOS_VERSION}${_version_patch_word}")
   set(GEOS_VERSION_PATCH "${_version_patch}${_version_patch_word}")
 endif()
-set(GEOS_VERSION_NOPATCH "${_version_major}.${_version_minor}.${_version_patch}")
 
 unset(_version_major)
 unset(_version_minor)
@@ -97,12 +95,6 @@ endif()
 
 # Default to release build so packagers don't release debug builds
 set(DEFAULT_BUILD_TYPE Release)
-
-# Require CMake 3.13+ with VS generator for complete support of VS versions
-# and support by AppVeyor.
-if(${CMAKE_GENERATOR} MATCHES "Visual Studio")
-  cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
-endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -142,9 +134,13 @@ cmake_dependent_option(GEOS_BUILD_DEVELOPER
 mark_as_advanced(GEOS_BUILD_DEVELOPER)
 
 if (POLICY CMP0092)
-  # dont set /W3 warning flags by default, we already
-  # set /W4 anyway
+  # dont set /W3 warning flags by default
   cmake_policy(SET CMP0092 NEW)
+endif()
+if(MSVC)
+  message(STATUS "CMAKE_CXX_FLAGS 1: ${CMAKE_CXX_FLAGS}")
+  #string(REGEX REPLACE "/W[3|4]" "/W3" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  #message(STATUS "CMAKE_CXX_FLAGS 2: ${CMAKE_CXX_FLAGS}")
 endif()
 
 #-----------------------------------------------------------------------------
@@ -226,10 +222,10 @@ target_compile_features(geos_cxx_flags INTERFACE cxx_std_11)
 #-----------------------------------------------------------------------------
 
 target_compile_options(geos_cxx_flags INTERFACE
-	"$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-ffp-contract=off>"
-	"$<$<CXX_COMPILER_ID:GNU>:-ffp-contract=off>"
-	"$<$<BOOL:${MSVC}>:/fp:precise>"
-	)
+  "$<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-ffp-contract=off>"
+  "$<$<CXX_COMPILER_ID:GNU>:-ffp-contract=off>"
+  "$<$<BOOL:${MSVC}>:/fp:precise>"
+)
 
 # Use -ffloat-store for 32-bit builds (needed to make some tests pass)
 target_compile_options(geos_cxx_flags INTERFACE
@@ -284,19 +280,20 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     }")
   check_cxx_source_compiles("${TEST_LINK_STDCPP_SOURCE_CODE}" _TEST_LINK_STDCPP)
   if( NOT _TEST_LINK_STDCPP )
-      message(WARNING "Cannot link code using standard C++ library. Automatically adding -lstdc++ to CMAKE_EXE_LINKER_FLAGS, CMAKE_SHARED_LINKER_FLAGS and CMAKE_MODULE_LINKER_FLAGS")
-      set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lstdc++")
-      set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -lstdc++")
-      set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -lstdc++")
+    message(WARNING "Cannot link code using standard C++ library. "
+      "Automatically adding -lstdc++ to CMAKE_EXE_LINKER_FLAGS, "
+      "CMAKE_SHARED_LINKER_FLAGS and CMAKE_MODULE_LINKER_FLAGS")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lstdc++")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -lstdc++")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -lstdc++")
 
-      include(CheckCXXSourceCompiles)
-      check_cxx_source_compiles("${TEST_LINK_STDCPP_SOURCE_CODE}" _TEST_LINK_STDCPP_AGAIN)
-      if( NOT _TEST_LINK_STDCPP_AGAIN )
-          message(FATAL_ERROR "Cannot link C++ program")
-      endif()
+    include(CheckCXXSourceCompiles)
+    check_cxx_source_compiles("${TEST_LINK_STDCPP_SOURCE_CODE}" _TEST_LINK_STDCPP_AGAIN)
+    if( NOT _TEST_LINK_STDCPP_AGAIN )
+      message(FATAL_ERROR "Cannot link C++ program")
+    endif()
   endif()
 endif ()
-
 
 target_compile_definitions(geos_developer_cxx_flags
   INTERFACE
@@ -311,7 +308,7 @@ target_compile_options(geos_developer_cxx_flags
     $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Werror -pedantic -Wall -Wextra -Wno-long-long -Wcast-align -Wconversion -Wsign-conversion -Wchar-subscripts -Wdouble-promotion -Wpointer-arith -Wformat -Wformat-security -Wshadow -Wuninitialized -Wunused-parameter -fno-common>
     $<$<CXX_COMPILER_ID:GNU>:-fno-implicit-inline-templates -Wno-psabi -Wsuggest-attribute=format>
     $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:-Wno-unknown-warning-option>
-    )
+)
 
 #-----------------------------------------------------------------------------
 # Define a coverage build
@@ -445,7 +442,7 @@ install(TARGETS geos geos_cxx_flags
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-  )
+)
 
 install(TARGETS geos_c
   EXPORT geos-targets
@@ -453,7 +450,7 @@ install(TARGETS geos_c
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-  )
+)
 
 install(EXPORT geos-targets
   FILE geos-targets.cmake
@@ -525,7 +522,7 @@ if(PROJECT_IS_TOP_LEVEL)
       /web/
       cmake_install\\.cmake\$
       ${CMAKE_CURRENT_BINARY_DIR}
-      )
+    )
 
     # message(STATUS "GEOS: CPACK_SOURCE_PACKAGE_FILE_NAME: ${CPACK_SOURCE_PACKAGE_FILE_NAME}")
     # message(STATUS "GEOS: CPACK_SOURCE_IGNORE_FILES: ${CPACK_SOURCE_IGNORE_FILES}")
