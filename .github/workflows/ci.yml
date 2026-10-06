@@ -212,3 +212,33 @@ jobs:
         path: .ccache
         key: ${{ steps.restore-cache.outputs.cache-primary-key }}
 
+  windows-clang:
+    name: Windows Clang
+    runs-on: windows-2022
+
+    steps:
+    - uses: actions/checkout@v7.0.1
+
+    - name: Activate MSVC
+      uses: TheMrMilchmann/setup-msvc-dev@v4
+      with:
+        arch: x64
+
+    - name: 'Build'
+      shell: cmd
+      run: |
+        cmake --version
+        cmake ^
+          -G Ninja ^
+          -D CMAKE_C_COMPILER=clang ^
+          -D CMAKE_CXX_COMPILER=clang++ ^
+          -D CMAKE_CXX_FLAGS="-Wno-deprecated-copy-with-dtor" ^
+          -D CMAKE_BUILD_TYPE=Release ^
+          -S . -B build
+        IF %ERRORLEVEL% NEQ 0 exit /B 1
+        cmake --build build --config Release -j 4
+        IF %ERRORLEVEL% NEQ 0 exit /B 1
+
+    - name: 'Test'
+      working-directory: build
+      run: ctest --output-on-failure -C Release
