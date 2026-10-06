@@ -89,7 +89,6 @@ jobs:
           -D USE_CCACHE=ON \
           -S . -B build
         cmake --build build -j $(nproc)
-        cmake --build build --target docs
         ccache --show-stats
 
     - name: Save build cache
