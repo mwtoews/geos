@@ -559,6 +559,9 @@ public:
     bool
     contains(double x, double y) const
     {
+        if(std::isnan(x) || std::isnan(maxx)) {
+            return false;
+        }
         return covers(x, y);
     }
 

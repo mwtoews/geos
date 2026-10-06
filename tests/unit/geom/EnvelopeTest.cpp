@@ -689,4 +689,25 @@ void object::test<21>()
     ensure(env.containsProperly({3.0000001, 8}));
 }
 
+// Test contains(x, y), covers(x, y), and intersects(x, y) with NaN or Empty
+template<>
+template<>
+void object::test<22>
+()
+{
+    geos::geom::Envelope empty;
+    geos::geom::Envelope box(0, 100, 0, 100);
+    double nan = std::nan("");
+
+    ensure(!empty.contains(1.0, 2.0));
+    ensure(!empty.covers(1.0, 2.0));
+    ensure(!empty.intersects(1.0, 2.0));
+
+    ensure(!box.contains(nan, 2.0));
+    ensure(!box.covers(nan, 2.0));
+    ensure(!box.intersects(nan, 2.0));
+
+    ensure_no_fp_except();
+}
+
 }
